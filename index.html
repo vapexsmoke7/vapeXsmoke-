@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VapeXSmoke</title><style>
+*{box-sizing:border-box}body{margin:0;background:#050509;color:#fff;font-family:Arial,sans-serif}nav{position:sticky;top:0;z-index:20;background:#0d0d13;border-bottom:1px solid #24242d;padding:14px 6%;display:flex;justify-content:space-between;align-items:center}.logo{width:170px;height:55px;object-fit:contain}nav a{color:#fff;text-decoration:none;margin-left:18px}.hero{text-align:center;padding:55px 20px 70px;background:radial-gradient(circle,#132532,#050509 65%)}.hero img{width:min(420px,90vw);filter:drop-shadow(0 0 25px #008cff)}h1{font-size:clamp(35px,7vw,65px)}h1 span{color:#20ddff}.hero p{color:#aaa;font-size:18px}.btn{display:inline-block;padding:12px 20px;background:#20ddff;color:#000;border-radius:8px;text-decoration:none;font-weight:bold;border:0;cursor:pointer}.section{padding:55px 6%}.title{text-align:center;margin-bottom:30px}.title p{color:#888}.products{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:18px}.card{background:#121219;border:1px solid #272732;border-radius:14px;overflow:hidden}.pic{height:210px;background:#1c1c24;display:flex;align-items:center;justify-content:center;color:#777}.pic img{width:100%;height:100%;object-fit:contain}.info{padding:17px}.price{color:#20ddff;font-weight:bold;font-size:20px;margin:10px 0}.qty{width:65px;padding:8px;background:#09090d;color:#fff;border:1px solid #333;border-radius:6px}.cartbar{position:fixed;right:18px;bottom:18px;z-index:30;background:#20ddff;color:#000;padding:14px 18px;border-radius:30px;font-weight:bold;cursor:pointer}.modal{display:none;position:fixed;inset:0;background:#000b;z-index:50;align-items:center;justify-content:center;padding:15px}.box{background:#121219;border:1px solid #333;border-radius:14px;padding:25px;width:min(520px,100%);max-height:90vh;overflow:auto}.box input,.box textarea{width:100%;padding:12px;margin:7px 0 12px;background:#09090d;color:#fff;border:1px solid #333;border-radius:7px}.row{display:flex;gap:10px;justify-content:flex-end}.muted{color:#999}footer{text-align:center;padding:25px;color:#777;border-top:1px solid #202027}
+</style></head><body>
+<nav><img class="logo" src="/logo.png"><div><a href="#products">Products</a><a href="#contact">Contact</a></div></nav>
+<section class="hero"><img src="/logo.png"><h1>Vape<span>X</span>Smoke</h1><p>Wholesale & Online Service</p><a class="btn" href="#products">Shop Products</a></section>
+<section class="section" id="products"><div class="title"><h2>Products</h2><p>Select products and add them to your order.</p></div><div id="productsGrid" class="products"></div></section>
+<div class="cartbar" onclick="openCart()">🛒 Cart (<span id="cartCount">0</span>)</div>
+<div class="modal" id="cartModal"><div class="box"><h2>Your Order</h2><div id="cartItems"></div><h3>Total: Rs. <span id="total">0</span></h3>
+<input id="name" placeholder="Full name"><input id="phone" placeholder="Phone number"><textarea id="address" placeholder="Delivery address"></textarea>
+<p class="muted">Orders are subject to applicable age, product, delivery and local-law requirements.</p>
+<div class="row"><button class="btn" onclick="closeCart()">Close</button><button class="btn" onclick="placeOrder()">Place Order</button></div></div></div>
+<section class="section" id="contact"><div class="title"><h2>Contact</h2><p>WhatsApp: 03278046331 · Instagram: @vape_x_smoke</p></div></section>
+<footer>© 2026 VapeXSmoke. For adults of legal purchasing age only. Follow applicable laws.</footer>
+<script>
+let products=[],cart=[];
+async function load(){products=await (await fetch('/api/products')).json();render();}
+function render(){productsGrid.innerHTML=products.map(p=>`<div class="card"><div class="pic">${p.image?`<img src="${p.image}">`:'PRODUCT IMAGE'}</div><div class="info"><h3>${esc(p.name)}</h3><p class="muted">${esc(p.description||'')}</p><div class="price">Rs. ${Number(p.price).toLocaleString()}</div><p class="muted">Stock: ${p.stock}</p><button class="btn" onclick="add(${p.id})" ${p.stock<1?'disabled':''}>Add to Cart</button></div></div>`).join('');}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+function add(id){let x=cart.find(i=>i.id===id);if(x)x.qty++;else cart.push({id,qty:1});update();}
+function update(){cartCount.textContent=cart.reduce((a,b)=>a+b.qty,0);}
+function openCart(){renderCart();cartModal.style.display='flex'}
+function closeCart(){cartModal.style.display='none'}
+function renderCart(){let total=0;cartItems.innerHTML=cart.map(i=>{let p=products.find(x=>x.id===i.id);let t=p.price*i.qty;total+=t;return `<p><b>${esc(p.name)}</b> × ${i.qty} — Rs. ${t.toLocaleString()} <button onclick="removeItem(${i.id})">×</button></p>`}).join('')||'<p class="muted">Cart is empty.</p>';document.getElementById('total').textContent=total.toLocaleString();}
+function removeItem(id){cart=cart.filter(x=>x.id!==id);update();renderCart();}
+async function placeOrder(){if(!cart.length)return alert('Cart is empty');let body={customer_name:name.value.trim(),phone:phone.value.trim(),address:address.value.trim(),items:cart};if(!body.customer_name||!body.phone||!body.address)return alert('Please complete your details');let r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let j=await r.json();if(!r.ok)return alert(j.error||'Order failed');alert('Order placed! Order #'+j.orderId);cart=[];update();closeCart();load();}
+load();
+</script></body></html>

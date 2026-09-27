@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VapeXSmoke Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#08080c;color:#fff;font-family:Arial}.wrap{max-width:1100px;margin:auto;padding:25px}.box{background:#13131a;border:1px solid #292934;border-radius:12px;padding:22px;margin-bottom:20px}input,textarea,select{width:100%;padding:11px;margin:7px 0 12px;background:#09090d;color:#fff;border:1px solid #333;border-radius:7px}.btn{padding:11px 18px;border:0;border-radius:7px;background:#20ddff;color:#000;font-weight:bold;cursor:pointer}.danger{background:#ff5a5a}.tabs button{margin-right:8px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:15px}.item{background:#0d0d12;border:1px solid #282832;border-radius:10px;padding:15px}.item img{width:100%;height:150px;object-fit:contain;background:#17171f}.muted{color:#999}.hidden{display:none}.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+</style></head><body><div class="wrap">
+<div id="loginBox" class="box"><h1>Admin Login</h1><p class="muted">On first launch, create your own password.</p><div id="setup"></div><input id="pass" type="password" placeholder="Password"><button class="btn" onclick="login()">Login</button><p id="msg"></p></div>
+<div id="panel" class="hidden">
+<div class="top"><h1>VapeXSmoke Admin</h1><button class="btn" onclick="logout()">Logout</button></div>
+<div class="tabs box"><button class="btn" onclick="show('products')">Products</button> <button class="btn" onclick="show('orders')">Orders</button></div>
+<div id="products">
+<div class="box"><h2>Add Product</h2><input id="pn" placeholder="Product name"><textarea id="pd" placeholder="Description"></textarea><input id="pp" type="number" placeholder="Price"><input id="ps" type="number" placeholder="Stock"><input id="pi" type="file" accept="image/*"><button class="btn" onclick="addProduct()">Add Product</button></div>
+<div class="box"><h2>Products</h2><div id="productList" class="grid"></div></div></div>
+<div id="orders" class="hidden"><div class="box"><h2>Orders</h2><div id="orderList"></div></div></div>
+</div></div>
+<script>
+async function api(url,opt={}){let r=await fetch(url,opt);let j=await r.json();if(!r.ok)throw Error(j.error||'Error');return j}
+async function init(){let s=await api('/api/setup');setup.innerHTML=s.setupNeeded?'<p class="muted">Create admin password:</p><input id="newpass" type="password" placeholder="At least 8 characters"><button class="btn" onclick="setupAdmin()">Create Password</button>':'';let me=await api('/api/me');if(me.admin)openPanel();}
+async function setupAdmin(){try{await api('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:newpass.value})});alert('Password created. Now login.');location.reload()}catch(e){msg.textContent=e.message}}
+async function login(){try{await api('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pass.value})});openPanel()}catch(e){msg.textContent=e.message}}
+function openPanel(){loginBox.classList.add('hidden');panel.classList.remove('hidden');loadProducts();loadOrders()}
+async function logout(){await api('/api/logout',{method:'POST'});location.reload()}
+function show(x){products.classList.toggle('hidden',x!=='products');orders.classList.toggle('hidden',x!=='orders');if(x==='orders')loadOrders()}
+async function addProduct(){let f=new FormData();f.append('name',pn.value);f.append('description',pd.value);f.append('price',pp.value);f.append('stock',ps.value);if(pi.files[0])f.append('image',pi.files[0]);try{await api('/api/admin/products',{method:'POST',body:f});pn.value=pd.value=pp.value=ps.value='';pi.value='';loadProducts()}catch(e){alert(e.message)}}
+async function loadProducts(){let ps=await api('/api/admin/products');productList.innerHTML=ps.map(p=>`<div class="item">${p.image?`<img src="${p.image}">`:''}<h3>${esc(p.name)}</h3><p>${esc(p.description||'')}</p><p>Rs. ${p.price} · Stock: ${p.stock}</p><button class="btn danger" onclick="del(${p.id})">Delete</button></div>`).join('')||'<p class="muted">No products yet.</p>'}
+async function del(id){if(confirm('Delete this product?')){await api('/api/admin/products/'+id,{method:'DELETE'});loadProducts()}}
+async function loadOrders(){let os=await api('/api/admin/orders');orderList.innerHTML=os.map(o=>`<div class="item"><h3>Order #${o.id} — ${esc(o.status)}</h3><p>${esc(o.customer_name)} · ${esc(o.phone)}</p><p>${esc(o.address)}</p><p>${o.items.map(i=>esc(i.name)+' × '+i.qty).join('<br>')}</p><b>Total: Rs. ${o.total}</b><br><select onchange="status(${o.id},this.value)">${['Pending','Confirmed','Packed','Delivered','Cancelled'].map(s=>`<option ${s===o.status?'selected':''}>${s}</option>`).join('')}</select><small class="muted">${o.created_at}</small></div>`).join('')||'<p class="muted">No orders yet.</p>'}
+async function status(id,s){await api('/api/admin/orders/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:s})});loadOrders()}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+init();
+</script></body></html>
